@@ -1,65 +1,111 @@
+
 const express = require('express')
 const cherio = require('cherio');
-const bodyParser = require('express')
 const request = require('request');
 const fs = require('fs');
 const https = require('https')
+const axios = require('axios');
 let app = express()
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 
-// mongoose.connect("mongodb+srv://disha123:hl6LMcJIED1eCZhr@cluster0.hrerz.mongodb.net/project1-phase1", {
-//     useNewUrlParser: true
-// })
-// .then( () => console.log("MongoDb is connected"))
-// .catch ( err => console.log(err) )
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }));
 
+app.get("/", (req,res) => {
+    res.send('users')
+})
 
-let set = new Set()
-// Create a Write Stream 
-var WriteStream  = fs.createWriteStream("ImagesLink.txt", "UTF-8");
+app.get("/downloadImages", async(req,res) => {
+       try{
+        let images = []
+        var WriteStream  = fs.createWriteStream("ImagesLink.txt", "UTF-8");
+        async function download(url){
+            request(url, (err, resp, html)=>{
+                if(!err && resp.statusCode == 200){
+                    console.log("Request was success "); 
+                    const $ = cherio.load(html);
+                    $("img").each((index, image)=>{
+                        var img = $(image).attr('src');
+                        if(img.slice(0,4) == 'http'){
+                            var Links = img
+                        }else{
+                            var baseUrl = url;
+                            var Links = baseUrl + img;
+                        }
+                        WriteStream.write(Links);
+                        WriteStream.write("\n");
+                        if(!images.includes(Links)) images.push(Links)
+                    });
+                }else{
+                    console.log(err);
+                    return res.send({status : false, msg : err})
+                }
+                console.log(images.length)
+                for(let i = 0; i < images.length; i++){
+                    setTimeout(() => {
+                        var fullUrl = images.shift()
+                        let path = "./uploads/" + Date.now() + ".jpg"
+                        let localPath = fs.createWriteStream(path);
+                        let request = https.get(fullUrl, function(response){
+                        console.log("downloaded successfully",i);
+                        response.pipe(localPath)
+                    })
+                    },1000*i)
+                }
+            });
+        } 
+        (async () => {
+        try {
+            baseUrl = 'https://en.wikipedia.org/wiki/Weather'
+            let homePageLinks = await download(baseUrl)
+            console.log(homePageLinks);
+    } catch (e) { console.log(e); }
 
-let x = 'https://www.growpital.com/'
+})();
+    res.send({status : true, msg : "Downloaded successfully"})
+       }catch(error){
+        res.send({status : false, msg : error.message})
+       }
+    })
 
-request(x, (err, resp, html)=>{
+app.listen(3000, ()=>{
+    console.log("Listening on port 3000")
+})
 
-    if(!err && resp.statusCode == 200){
-        console.log("Request was success ");
-        
-        // Define Cherio or $ Object 
-        const $ = cherio.load(html);
+// var baseUrl = 'https://www.growpital.com';
 
-        $("img").each((index, image)=>{
+// (async () => {
+    
+//     try 
+//     {
+//         let homePageLinks = await getLinksFromURL(baseUrl)
+//         console.log(homePageLinks);
+//     } catch (e) { console.log(e); }
 
-            var img = $(image).attr('src');
-            if(img.slice(0,4) == 'http'){
-                var Links = img
-            }else{
-                var baseUrl = x;
-                var Links = baseUrl + img;
-            }
-            WriteStream.write(Links);
-            WriteStream.write("\n");
-            set.add(Links)
-        });
-    }else{
-        console.log(err);
-    }
-    let images = Array.from(set)
-    console.log(images.length)
-    for(let i = 0; i < images.length; i++){
-        setTimeout(() => {
-            var fullUrl = images[i];
-            let path = "./uploads/" + Date.now() + ".jpg"
-            let localPath = fs.createWriteStream(path);
-            let request = https.get(fullUrl, function(response){
-            console.log("downloaded successfully",i);
-            response.pipe(localPath)
-        })
-        },1000*i)
-    }
+// })();
 
-});
+// let map1 = new Set()
+
+// async function getLinksFromURL(url) {
+
+//     try {
+//         let urls;
+//         let httpResponse = await axios.get(url);
+//         let $ = cherio.load(httpResponse.data);
+//         let linkObjects = $('a'); 
+//         linkObjects.each((index, element) => {
+//             if($(element).attr('href').slice(0,4) == 'http'){
+//                 urls = $(element).attr('href')
+//             }else{
+//                 urls = baseUrl+$(element).attr('href')
+//             }
+//             map1.add(urls);
+//         });
+//       return [...map1];
+//     } catch (error) {
+//          console.log(error) 
+//     }
+// }
+
 // const puppeteer = require("puppeteer");
 // const fs = require("fs");
 // const path = require("path");

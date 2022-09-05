@@ -55,7 +55,7 @@ app.get("/downloadImages", async(req,res) => {
         } 
         (async () => {
         try {
-            baseUrl = 'https://en.wikipedia.org/wiki/Weather'
+            baseUrl = req.body.url
             let homePageLinks = await download(baseUrl)
             console.log(homePageLinks);
     } catch (e) { console.log(e); }
